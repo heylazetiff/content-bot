@@ -234,6 +234,45 @@
   .idea-btn.approve:hover,.idea-btn.approve.on { background:var(--mint-soft); border-color:var(--mint); color:#059669; }
   .idea-btn.tweak:hover { background:var(--lavender-soft); border-color:var(--lavender); color:var(--lavender); }
   .idea-btn.skip:hover,.idea-btn.skip.on { background:#fff5f5; border-color:#fca5a5; color:#ef4444; }
+  .script-box {
+    display:none; margin-top:14px;
+    background:#fffbeb; border:2px solid #fde68a;
+    border-radius:14px; padding:14px;
+    animation: slideUp 0.3s ease forwards;
+  }
+  .script-box.visible { display:block; }
+  .script-box-header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px;
+  }
+  .script-box-header span {
+    font-family:'Nunito',sans-serif; font-size:0.72rem; font-weight:800;
+    color:#d97706; text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .script-copy-btn {
+    font-size:0.7rem; font-weight:700; color:#d97706;
+    background:white; border:1.5px solid #fde68a;
+    border-radius:8px; padding:4px 10px; cursor:pointer;
+    font-family:'Quicksand',sans-serif; transition:all 0.2s;
+  }
+  .script-copy-btn:hover { background:#fffbeb; }
+  .script-content {
+    font-size:0.78rem; color:#3d2c35; line-height:1.7;
+    white-space:pre-wrap; font-family:'Quicksand',sans-serif;
+    font-weight:500;
+  }
+  .script-loading {
+    display:none; text-align:center; padding:16px 0;
+  }
+  .script-loading.visible { display:block; }
+  .script-loading p { font-size:0.78rem; color:#d97706; font-weight:600; }
+  .script-dots span {
+    display:inline-block; width:6px; height:6px;
+    background:#fbbf24; border-radius:50%; margin:0 2px;
+    animation:hb 1s ease-in-out infinite;
+  }
+  .script-dots span:nth-child(2){animation-delay:0.2s}
+  .script-dots span:nth-child(3){animation-delay:0.4s}
 
   /* ── Approved list ── */
   .approved-list { display:none; background:var(--mint-soft); border:2px solid #a7f3d0; border-radius:18px; padding:16px; margin-bottom:14px; }
@@ -558,6 +597,17 @@ Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
           <button class="idea-btn approve" onclick="approve(${idea.id})">✓ Approve</button>
           <button class="idea-btn tweak" onclick="tweak(${idea.id})">✏ Tweak</button>
           <button class="idea-btn skip" onclick="skip(${idea.id})">✕ Skip</button>
+        </div>
+        <div class="script-loading" id="script-loading-${idea.id}">
+          <div class="script-dots"><span></span><span></span><span></span></div>
+          <p>Writing your script… ✨</p>
+        </div>
+        <div class="script-box" id="script-box-${idea.id}">
+          <div class="script-box-header">
+            <span>📝 Your Script</span>
+            <button class="script-copy-btn" onclick="copyScript(${idea.id})">📋 Copy</button>
+          </div>
+          <div class="script-content" id="script-content-${idea.id}"></div>
         </div>`;
       list.appendChild(div);
     });
@@ -574,6 +624,11 @@ Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
     c.querySelector('.approve').classList.add('on');
     c.querySelector('.skip').classList.remove('on');
     updateApproved();
+    // Generate script if not already done
+    const scriptBox = document.getElementById(`script-box-${id}`);
+    if (scriptBox && !scriptBox.classList.contains('visible')) {
+      generateScript(id);
+    }
   }
 
   function skip(id) {
@@ -611,6 +666,75 @@ Respond ONLY with JSON (no markdown): {"title":"...","brief":"...","platforms":[
     } finally {
       card.style.opacity = '1';
     }
+  }
+
+  // ── Script generation ────────────────────────────────────────
+
+  async function generateScript(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+
+    const loading = document.getElementById(`script-loading-${id}`);
+    const box     = document.getElementById(`script-box-${id}`);
+    const content = document.getElementById(`script-content-${id}`);
+
+    if (loading) loading.classList.add('visible');
+
+    const platforms = Array.isArray(idea.platforms) ? idea.platforms : [idea.platforms];
+    const platform  = platforms[0] || 'social media';
+
+    const scriptPrompt = `You are a social media content scriptwriter.
+Write a complete, ready-to-film script for this content idea:
+
+Title: ${idea.title}
+Brief: ${idea.brief}
+Platform: ${platform}
+Format: ${idea.format}
+
+Write the script in this exact structure:
+
+🎬 HOOK (first 3 seconds — grab attention immediately)
+[hook line]
+
+📢 INTRO (5-10 seconds)
+[what you say to introduce the topic]
+
+💡 MAIN CONTENT (the value — 3 to 5 key points)
+Point 1: [what to say and show]
+Point 2: [what to say and show]
+Point 3: [what to say and show]
+
+🎯 CTA — Call to Action (last 5 seconds)
+[what to say to end the video]
+
+📌 CAPTION IDEA
+[suggested caption with hashtags]
+
+Keep it natural, conversational and authentic to the creator's voice.
+Make it feel like THEY wrote it, not an AI.`;
+
+    try {
+      const text = await callAI(scriptPrompt, 1000);
+      if (content) content.textContent = text;
+      if (loading) loading.classList.remove('visible');
+      if (box)     box.classList.add('visible');
+    } catch(e) {
+      if (loading) loading.classList.remove('visible');
+      if (content) content.textContent = 'Could not generate script. Tap Approve again to retry.';
+      if (box)     box.classList.add('visible');
+    }
+  }
+
+  function copyScript(id) {
+    const content = document.getElementById(`script-content-${id}`);
+    if (!content) return;
+    navigator.clipboard.writeText(content.textContent).then(() => {
+      const btn = document.querySelector(`#script-box-${id} .script-copy-btn`);
+      if (btn) {
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+      }
+    });
   }
 
   // ── Approved list ─────────────────────────────────────────
