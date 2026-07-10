@@ -297,6 +297,71 @@
   }
   .export-btn:hover { background:#fce7f3; box-shadow:0 4px 16px rgba(236,72,153,0.15); }
   .export-note { font-size:0.73rem; color:var(--muted); text-align:center; line-height:1.5; font-weight:500; padding:0 8px; }
+
+  /* ── Tabs ── */
+  .tab-bar { display:flex; gap:8px; padding:16px 16px 0; }
+  .tab-btn {
+    flex:1; padding:12px 8px; border-radius:14px;
+    border:2px solid var(--border); background:var(--surface);
+    color:var(--muted); font-family:'Nunito',sans-serif;
+    font-size:0.8rem; font-weight:800; cursor:pointer;
+    transition:all 0.2s; box-shadow:var(--shadow);
+  }
+  .tab-btn.active { border-color:transparent; background:linear-gradient(135deg,var(--pink-deep),var(--peach)); color:white; box-shadow:0 4px 16px rgba(236,72,153,0.28); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── Viral breakdown tab ── */
+  .viral-intro { padding:16px 16px 0; }
+  .viral-intro p { font-size:0.8rem; color:var(--muted); font-weight:500; line-height:1.6; }
+  .analyze-btn {
+    width:calc(100% - 32px); margin:18px 16px 0;
+    padding:16px; border-radius:18px; border:none;
+    background:linear-gradient(135deg,var(--lavender) 0%,var(--pink-deep) 100%);
+    color:white; font-family:'Nunito',sans-serif; font-size:0.95rem; font-weight:900;
+    cursor:pointer; transition:all 0.2s; box-shadow:0 6px 22px rgba(167,139,250,0.32);
+  }
+  .analyze-btn:hover { transform:translateY(-1px); }
+  .analyze-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+  .viral-loading { display:none; text-align:center; padding:32px 24px; }
+  .viral-loading.visible { display:block; }
+  .viral-loading p { color:var(--muted); font-size:0.85rem; font-weight:600; }
+
+  .viral-result { display:none; margin:22px 16px 0; }
+  .viral-result.visible { display:block; animation:slideUp 0.3s ease forwards; }
+  .viral-card {
+    background:var(--surface); border:2px solid var(--border);
+    border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow);
+  }
+  .viral-card h4 { font-family:'Nunito',sans-serif; font-size:0.78rem; font-weight:900; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.04em; }
+  .viral-card ul { padding-left:18px; }
+  .viral-card li { font-size:0.82rem; color:var(--text); line-height:1.6; margin-bottom:6px; font-weight:500; }
+  .hook-type-badge { display:inline-block; background:var(--lavender-soft); color:var(--lavender); font-size:0.68rem; font-weight:800; padding:4px 10px; border-radius:20px; margin-bottom:9px; text-transform:uppercase; letter-spacing:0.05em; }
+  .hook-breakdown { font-size:0.82rem; color:var(--text); line-height:1.6; font-weight:500; }
+  .save-lib-btn {
+    width:100%; padding:13px; border-radius:14px;
+    border:2px solid var(--mint); background:var(--mint-soft);
+    color:#059669; font-family:'Nunito',sans-serif; font-size:0.85rem; font-weight:800;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .save-lib-btn:hover { background:#d1fae5; }
+  .save-lib-btn:disabled { opacity:0.55; cursor:not-allowed; }
+
+  /* ── Library ── */
+  .library-section { padding:0 16px; margin-top:30px; }
+  .library-empty { font-size:0.78rem; color:var(--muted); font-weight:500; text-align:center; padding:26px 14px; background:var(--surface); border:2px dashed var(--border); border-radius:16px; line-height:1.6; }
+  .library-item {
+    background:var(--surface); border:2px solid var(--border);
+    border-radius:16px; padding:14px; margin-bottom:10px; box-shadow:var(--shadow);
+  }
+  .library-item-url { font-size:0.72rem; color:var(--lavender); font-weight:700; word-break:break-all; margin-bottom:6px; }
+  .library-item-detail { font-size:0.78rem; color:var(--text); line-height:1.55; font-weight:500; margin-bottom:5px; }
+  .library-item-detail b { color:var(--pink-deep); }
+  .library-item-actions { display:flex; gap:10px; margin-top:10px; align-items:center; }
+  .lib-checkbox-label { display:flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--muted); font-weight:700; flex:1; }
+  .lib-delete-btn { background:transparent; border:2px solid var(--border); color:#ef4444; font-size:0.72rem; font-weight:700; cursor:pointer; padding:6px 10px; border-radius:10px; transition:all 0.2s; }
+  .lib-delete-btn:hover { border-color:#fca5a5; background:#fff5f5; }
 </style>
 </head>
 <body>
@@ -320,6 +385,14 @@
   <p class="err-msg" id="errMsg"></p>
   <p class="err-hint" id="errHint"></p>
 </div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabBtnBrainstorm" onclick="switchTab('brainstorm')">💡 Brainstorm</button>
+  <button class="tab-btn" id="tabBtnViral" onclick="switchTab('viral')">🔍 Why It Went Viral</button>
+</div>
+
+<div class="tab-content active" id="tab-brainstorm">
 
 <!-- Platforms -->
 <div class="section">
@@ -369,20 +442,6 @@
   </div>
 </div>
 
-<!-- Reference Links -->
-<div class="section" style="margin-top:20px">
-  <div class="section-label">🔗 Steal Like an Artist — Reference Links</div>
-  <p class="hint-text">Paste links from creators you love. The bot will analyse their hook/angle and adapt it to your voice 🎨</p>
-  <div class="link-list" id="linkList">
-    <div class="link-row">
-      <div class="link-input-wrap">
-        <input type="url" placeholder="https://www.instagram.com/reel/..."/>
-      </div>
-    </div>
-  </div>
-  <button class="add-link-btn" onclick="addLink()">＋ Add another link</button>
-</div>
-
 <!-- Count -->
 <div class="section" style="margin-top:20px">
   <div class="section-label">🌟 How many ideas?</div>
@@ -417,6 +476,61 @@
   <p class="export-note">Copies ideas with #content tags → paste into Apple Reminders, your automation will schedule them 🗓️</p>
 </div>
 
+</div><!-- /tab-brainstorm -->
+
+<div class="tab-content" id="tab-viral">
+
+  <div class="viral-intro">
+    <p>Paste a link to a video that did numbers. I'll break down why it worked, dissect the hook, and figure out how heylazetiff can steal the format — not the content — for her own videos 🎨</p>
+  </div>
+
+  <div class="section" style="margin-top:14px">
+    <div class="section-label">🔗 Video Link</div>
+    <div class="input-card">
+      <input type="url" id="viralUrl" placeholder="https://www.tiktok.com/@creator/video/..."/>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:14px">
+    <div class="section-label">📝 Caption, transcript, or what happens in it</div>
+    <p class="hint-text">Optional, but I can't watch the video myself — a quick description of the hook/caption/what happens makes the breakdown way sharper 🎯</p>
+    <div class="input-card">
+      <textarea id="viralContext" rows="4" placeholder="e.g. Opens with 'nobody talks about this but...', shows a before/after, caption says..."></textarea>
+    </div>
+  </div>
+
+  <button class="analyze-btn" onclick="analyzeViral()">🔍 Break This Down</button>
+
+  <div class="viral-loading" id="viralLoading">
+    <div class="hearts-loader"><span>🔍</span><span>✨</span><span>🔍</span></div>
+    <p>Reverse-engineering the virality…</p>
+  </div>
+
+  <div class="viral-result" id="viralResult">
+    <div class="viral-card">
+      <h4>🔥 Why It Went Viral</h4>
+      <ul id="whyViralList"></ul>
+    </div>
+    <div class="viral-card">
+      <h4>🪝 The Hook</h4>
+      <span class="hook-type-badge" id="hookType"></span>
+      <p class="hook-breakdown" id="hookBreakdown"></p>
+    </div>
+    <div class="viral-card">
+      <h4>🎨 Steal Like an Artist — For heylazetiff</h4>
+      <ul id="stealList"></ul>
+    </div>
+    <button class="save-lib-btn" id="saveLibBtn" onclick="saveToLibrary()">💾 Save to Library</button>
+  </div>
+
+  <div class="library-section">
+    <div class="section-label">🎨 Your Steal-Like-An-Artist Library</div>
+    <p class="hint-text">Saved breakdowns are remembered across sessions (via your Puter account) and get pulled into idea generation on the Brainstorm tab ✨</p>
+    <div id="libraryList"></div>
+  </div>
+
+</div><!-- /tab-viral -->
+
 <script>
   let selectedPlatforms = ['Instagram','TikTok','YouTube'];
   let selectedNiche = '';
@@ -424,6 +538,12 @@
   let ideas = [];
   let approvedIds = new Set();
   let rejectedIds = new Set();
+
+  // ── Steal-like-an-artist library ────────────────────────────
+  let library = [];         // saved, persisted breakdowns
+  let pendingAnalysis = null; // most recent unsaved analysis
+
+  window.addEventListener('DOMContentLoaded', loadLibrary);
 
   // ── Brand voice: heylazetiff ────────────────────────────────
   const LAZETIFF_BRAND = `BRAND VOICE — heylazetiff:
@@ -529,22 +649,135 @@ Voice rules:
     btn.classList.add('active');
   }
 
-  function addLink() {
-    const list = document.getElementById('linkList');
-    const row = document.createElement('div');
-    row.className = 'link-row';
-    row.innerHTML = `
-      <div class="link-input-wrap">
-        <input type="url" placeholder="https://www.tiktok.com/@creator/video/..."/>
-      </div>
-      <button class="remove-btn" onclick="this.parentElement.remove()">×</button>`;
-    list.appendChild(row);
-    row.querySelector('input').focus();
+  // ── Tabs ─────────────────────────────────────────────────
+
+  function switchTab(name) {
+    document.getElementById('tab-brainstorm').classList.toggle('active', name === 'brainstorm');
+    document.getElementById('tab-viral').classList.toggle('active', name === 'viral');
+    document.getElementById('tabBtnBrainstorm').classList.toggle('active', name === 'brainstorm');
+    document.getElementById('tabBtnViral').classList.toggle('active', name === 'viral');
   }
 
-  function getLinks() {
-    return Array.from(document.querySelectorAll('#linkList input'))
-      .map(i => i.value.trim()).filter(Boolean);
+  // ── Steal-like-an-artist library (persisted via Puter KV) ───
+
+  async function loadLibrary() {
+    try {
+      const stored = await puter.kv.get('lazetiff_viral_library');
+      if (stored) library = JSON.parse(stored);
+    } catch (e) {
+      console.warn('Could not load library (probably empty or not signed in yet):', e);
+    }
+    renderLibrary();
+  }
+
+  async function persistLibrary() {
+    try {
+      await puter.kv.set('lazetiff_viral_library', JSON.stringify(library));
+    } catch (e) {
+      console.warn('Could not persist library:', e);
+    }
+  }
+
+  function renderLibrary() {
+    const wrap = document.getElementById('libraryList');
+    if (!wrap) return;
+    if (library.length === 0) {
+      wrap.innerHTML = `<div class="library-empty">Nothing saved yet 🌸<br>Break down a video above and tap "Save to Library" to build your steal-like-an-artist reference set.</div>`;
+      return;
+    }
+    wrap.innerHTML = '';
+    library.slice().reverse().forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'library-item';
+      div.innerHTML = `
+        <div class="library-item-url">🔗 ${item.url}</div>
+        <div class="library-item-detail"><b>Hook:</b> ${item.hook?.type || ''} — ${item.hook?.breakdown || ''}</div>
+        <div class="library-item-detail"><b>Steal idea:</b> ${(item.steal_for_heylazetiff || [])[0] || ''}</div>
+        <div class="library-item-actions">
+          <label class="lib-checkbox-label">
+            <input type="checkbox" ${item.useForIdeas !== false ? 'checked' : ''} onchange="toggleLibraryUse('${item.id}', this.checked)"/>
+            Use for idea inspiration
+          </label>
+          <button class="lib-delete-btn" onclick="deleteFromLibrary('${item.id}')">🗑 Remove</button>
+        </div>`;
+      wrap.appendChild(div);
+    });
+  }
+
+  function toggleLibraryUse(id, checked) {
+    const item = library.find(i => i.id === id);
+    if (item) { item.useForIdeas = checked; persistLibrary(); }
+  }
+
+  function deleteFromLibrary(id) {
+    library = library.filter(i => i.id !== id);
+    renderLibrary();
+    persistLibrary();
+  }
+
+  // ── Viral breakdown analysis ────────────────────────────────
+
+  async function analyzeViral() {
+    const url = document.getElementById('viralUrl').value.trim();
+    const context = document.getElementById('viralContext').value.trim();
+    if (!url) { alert('Paste a video link first 💕'); return; }
+
+    hideError();
+    document.querySelector('.analyze-btn').disabled = true;
+    document.getElementById('viralLoading').classList.add('visible');
+    document.getElementById('viralResult').classList.remove('visible');
+
+    const brandContext = LAZETIFF_BRAND;
+    const prompt = `You are a viral content strategist reverse-engineering a piece of social content for a Singaporean lifestyle creator called heylazetiff.
+${brandContext}
+
+Video link: ${url}
+${context ? `What happens in the video (caption/transcript/description provided by the user):\n${context}` : 'No caption/transcript was provided — reason from the URL/platform and general best practices, and be upfront in your analysis that this is inferred rather than watched.'}
+
+Give a sharp, specific strategist's breakdown. Respond ONLY with valid JSON (no markdown, no preamble):
+{
+  "why_viral": ["specific reason 1", "specific reason 2", "specific reason 3"],
+  "hook": {"type": "short label e.g. Pattern Interrupt / Curiosity Gap / Relatable Confession", "breakdown": "1-2 sentences on exactly what makes the hook work"},
+  "steal_for_heylazetiff": ["specific, actionable way she could adapt this format/angle/structure to her own brand and niche — not a copy, an adaptation", "a second, different adaptation idea"]
+}`;
+
+    try {
+      const text = await callAI(prompt, 900);
+      const clean = text.replace(/```json|```/g, '').trim();
+      const analysis = JSON.parse(clean);
+      pendingAnalysis = { id: 'lib_' + Date.now(), url, context, useForIdeas: true, ...analysis };
+      renderViralResult(pendingAnalysis);
+    } catch (e) {
+      showError(e);
+    } finally {
+      document.getElementById('viralLoading').classList.remove('visible');
+      document.querySelector('.analyze-btn').disabled = false;
+    }
+  }
+
+  function renderViralResult(a) {
+    document.getElementById('whyViralList').innerHTML =
+      (a.why_viral || []).map(r => `<li>${r}</li>`).join('');
+    document.getElementById('hookType').textContent = a.hook?.type || '';
+    document.getElementById('hookBreakdown').textContent = a.hook?.breakdown || '';
+    document.getElementById('stealList').innerHTML =
+      (a.steal_for_heylazetiff || []).map(r => `<li>${r}</li>`).join('');
+    const saveBtn = document.getElementById('saveLibBtn');
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Save to Library';
+    document.getElementById('viralResult').classList.add('visible');
+    document.getElementById('viralResult').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function saveToLibrary() {
+    if (!pendingAnalysis) return;
+    library.push(pendingAnalysis);
+    persistLibrary();
+    renderLibrary();
+    const saveBtn = document.getElementById('saveLibBtn');
+    saveBtn.textContent = '✓ Saved!';
+    saveBtn.disabled = true;
+    pendingAnalysis = null;
   }
 
   // ── Generate ──────────────────────────────────────────────
@@ -556,15 +789,15 @@ Voice rules:
     const moment   = document.getElementById('moment').value.trim();
     const opinion  = document.getElementById('opinion').value.trim();
     const reaction = document.getElementById('reaction').value.trim();
-    const links    = getLinks();
+    const activeLibrary = library.filter(item => item.useForIdeas !== false);
 
     document.querySelector('.generate-btn').disabled = true;
     document.getElementById('loading').classList.add('visible');
     document.getElementById('loadingMsg').textContent = 'Brainstorming ideas just for you…';
     document.getElementById('ideasWrap').classList.remove('visible');
 
-    const linksSection = links.length > 0
-      ? `\nReference content links — analyse the hook/angle/format and adapt for this creator's voice:\n${links.map((l,i)=>`${i+1}. ${l}`).join('\n')}`
+    const linksSection = activeLibrary.length > 0
+      ? `\nSteal-like-an-artist library — saved breakdowns of other creators' viral videos, with hooks and angles already analysed. Use these as inspiration, adapted to this creator's own voice, not copied:\n${activeLibrary.map((item,i)=>`${i+1}. ${item.url}\n   Hook: ${item.hook?.type || ''} — ${item.hook?.breakdown || ''}\n   Why it worked: ${(item.why_viral||[]).join('; ')}\n   Adaptation idea already identified: ${(item.steal_for_heylazetiff||[]).join('; ')}`).join('\n')}`
       : '';
 
     const styleGuide = getNicheStyleGuide(selectedNiche);
@@ -584,7 +817,7 @@ Generate exactly ${ideaCount} content ideas. Each must:
 2. Reference the products/ideas or script pointers if provided
 3. Specify which platform(s) it's best for
 4. Include a content format (Reel, Carousel, TikTok, YouTube Short, etc.)
-5. Have a punchy hook-style title and a 1-2 sentence brief${styleGuide ? ', written strictly in the brand voice / style guide above — not generic marketing copy' : ''}${links.length > 0 ? '\n6. At least 2 ideas should adapt the angle from reference links and include an "inspired_by" note' : ''}
+5. Have a punchy hook-style title and a 1-2 sentence brief${styleGuide ? ', written strictly in the brand voice / style guide above — not generic marketing copy' : ''}${activeLibrary.length > 0 ? '\n6. At least 2 ideas should adapt the angle from the steal-like-an-artist library and include an "inspired_by" note' : ''}
 
 Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
 [{"id":1,"title":"...","brief":"...","platforms":["Instagram"],"format":"Reel","inspired_by":"optional"}]`;
