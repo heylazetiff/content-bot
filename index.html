@@ -489,11 +489,13 @@
     <div class="input-card">
       <input type="url" id="viralUrl" placeholder="https://www.tiktok.com/@creator/video/..."/>
     </div>
+    <button class="add-link-btn" id="autoFetchBtn" onclick="autoFetchCaption()">✨ Try Auto-Fetch Caption (TikTok / YouTube)</button>
+    <p class="hint-text" id="autoFetchStatus"></p>
   </div>
 
   <div class="section" style="margin-top:14px">
     <div class="section-label">📝 Caption, transcript, or what happens in it</div>
-    <p class="hint-text">Optional, but I can't watch the video myself — a quick description of the hook/caption/what happens makes the breakdown way sharper 🎯</p>
+    <p class="hint-text">I can't watch the video. Auto-fetch above will pull the real caption for TikTok/YouTube links — for Instagram, or if auto-fetch fails, paste it here yourself for an accurate breakdown 🎯</p>
     <div class="input-card">
       <textarea id="viralContext" rows="4" placeholder="e.g. Opens with 'nobody talks about this but...', shows a before/after, caption says..."></textarea>
     </div>
@@ -543,7 +545,11 @@
   let library = [];         // saved, persisted breakdowns
   let pendingAnalysis = null; // most recent unsaved analysis
 
-  window.addEventListener('DOMContentLoaded', loadLibrary);
+  window.addEventListener('DOMContentLoaded', () => {
+    loadLibrary();
+    const ctx = document.getElementById('viralContext');
+    if (ctx) ctx.addEventListener('input', () => { lastAutoFetchWasReal = false; });
+  });
 
   // ── Brand voice: heylazetiff ────────────────────────────────
   const LAZETIFF_BRAND = `BRAND VOICE — heylazetiff:
@@ -715,7 +721,59 @@ Voice rules:
     persistLibrary();
   }
 
-  // ── Viral breakdown analysis ────────────────────────────────
+  // ── Auto-fetch caption (TikTok / YouTube oEmbed — public, no key needed) ──
+  // Note: Instagram does not expose a public oEmbed endpoint anymore, so it
+  // always falls back to manual input. This never "reads" a video — it just
+  // pulls the caption/title metadata the platform itself makes public.
+
+  let lastAutoFetchWasReal = false;
+
+  function detectOEmbedUrl(url) {
+    if (/youtube\.com|youtu\.be/i.test(url)) {
+      return `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    }
+    if (/tiktok\.com/i.test(url)) {
+      return `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+    }
+    return null;
+  }
+
+  async function autoFetchCaption() {
+    const url = document.getElementById('viralUrl').value.trim();
+    const status = document.getElementById('autoFetchStatus');
+    const btn = document.getElementById('autoFetchBtn');
+    lastAutoFetchWasReal = false;
+
+    if (!url) { status.textContent = '⚠️ Paste a video link above first.'; return; }
+
+    const oembedUrl = detectOEmbedUrl(url);
+    if (!oembedUrl) {
+      status.textContent = '⚠️ Auto-fetch only works for TikTok/YouTube links — Instagram blocks this publicly. Paste the caption manually below.';
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = '🔄 Fetching real caption from the platform…';
+
+    try {
+      const res = await fetch(oembedUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const caption = data.title || '';
+      const author = data.author_name || '';
+      if (!caption) throw new Error('No caption returned');
+
+      const textarea = document.getElementById('viralContext');
+      textarea.value = `[Auto-fetched caption${author ? ' by ' + author : ''}]: ${caption}`;
+      lastAutoFetchWasReal = true;
+      status.textContent = '✓ Real caption fetched from the platform. Edit it, or add what happens visually in the video for a sharper breakdown.';
+    } catch (e) {
+      console.warn('Auto-fetch failed:', e);
+      status.textContent = '⚠️ Couldn\'t auto-fetch this link (it may be private, region-locked, or the platform blocked the request). Please paste the caption/what happens manually below.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
 
   async function analyzeViral() {
     const url = document.getElementById('viralUrl').value.trim();
@@ -728,11 +786,20 @@ Voice rules:
     document.getElementById('viralResult').classList.remove('visible');
 
     const brandContext = LAZETIFF_BRAND;
+    let contextSection;
+    if (context && lastAutoFetchWasReal) {
+      contextSection = `The caption below was fetched directly from the platform (real data, not guessed):\n${context}\nNote: this is the caption/title only — you still don't know exactly what's shown visually, so reason accordingly.`;
+    } else if (context) {
+      contextSection = `The user manually described the video (caption/transcript/what happens):\n${context}`;
+    } else {
+      contextSection = `No caption or description was provided and none could be fetched — you have only the URL. Reason from the platform/URL and general best-practice patterns, and be explicit in your analysis that this part is inferred, not observed.`;
+    }
+
     const prompt = `You are a viral content strategist reverse-engineering a piece of social content for a Singaporean lifestyle creator called heylazetiff.
 ${brandContext}
 
 Video link: ${url}
-${context ? `What happens in the video (caption/transcript/description provided by the user):\n${context}` : 'No caption/transcript was provided — reason from the URL/platform and general best practices, and be upfront in your analysis that this is inferred rather than watched.'}
+${contextSection}
 
 Give a sharp, specific strategist's breakdown. Respond ONLY with valid JSON (no markdown, no preamble):
 {
