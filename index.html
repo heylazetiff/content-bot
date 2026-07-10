@@ -341,8 +341,7 @@
     <button class="niche-chip" onclick="selectNiche(this,'Lazy girl finds')"><span class="chip-emoji">🛍️</span>Lazy Girl Finds</button>
     <button class="niche-chip" onclick="selectNiche(this,'J&T Couple Content')"><span class="chip-emoji">💑</span>J&amp;T Couple Content</button>
     <button class="niche-chip" onclick="selectNiche(this,'J&T Small House Content')"><span class="chip-emoji">🏠</span>J&amp;T Small House</button>
-    <button class="niche-chip" onclick="selectNiche(this,'IBF For Young Talent')"><span class="chip-emoji">🌟</span>IBF For Young Talent</button>
-    <button class="niche-chip" onclick="selectNiche(this,'IBF Educational Post')"><span class="chip-emoji">📚</span>IBF Educational Post</button>
+    <button class="niche-chip" onclick="selectNiche(this,'Food — Foodytiff style')"><span class="chip-emoji">🥢</span>Food (Foodytiff)</button>
   </div>
 </div>
 
@@ -425,6 +424,38 @@
   let ideas = [];
   let approvedIds = new Set();
   let rejectedIds = new Set();
+
+  // ── Brand voice: heylazetiff ────────────────────────────────
+  const LAZETIFF_BRAND = `BRAND VOICE — heylazetiff:
+You are not a "that girl." You are the girl watching "that girl" videos at 11pm while eating instant noodles, taking notes, and genuinely trying — just with more hacks, more oversharing, and a lot more honesty about the chaos.
+Your brand lives in the gap between the aesthetic you want and the reality you actually have. That gap is not a flaw — it's the entire personality, and why women aged 25-34 in Singapore trust you over anyone else.
+Brand archetype: Everyman. Core tension: the aspiration (glow-up, productivity, "that girl" aesthetic) vs the lived reality (chaos, tiredness, doing the bare minimum well).
+Voice rules:
+- Write like you're texting a friend at 11pm, not posting a polished caption. Self-deprecating, funny, specific, a little unhinged in a relatable way.
+- Never pretend to have it all together. Admit the mess, the shortcut, the "I did this because I was too lazy to do it the hard way."
+- Hooks should open mid-thought or mid-confession, not with generic "Here's how to..." energy.
+- Show the gap: what the aesthetic promises vs what you actually did/have/felt.
+- Overshare a little. Specificity (exact product, exact time, exact excuse) is funnier and more trustworthy than vague tips.`;
+
+  // ── Niche-specific style guides ──────────────────────────────
+  const NICHE_STYLE_GUIDES = {
+    'Lazy glow-up hacks': LAZETIFF_BRAND,
+    'Lazy lifestyle system — automation, save time, save braincells': LAZETIFF_BRAND,
+    'Lazy girl finds': LAZETIFF_BRAND,
+    'Food — Foodytiff style': `BRAND VOICE — Foodytiff style (modelled on how the Singapore food creator @foodytiff writes on Instagram/TikTok):
+- Casual, warm, first-person, community-first tone — like recommending a place to a friend, not reviewing it for a publication. Uses phrases in the spirit of "follow to eat together."
+- Playful, personality-driven names for food round-ups instead of generic titles — e.g. "Your CBD Lunch", "Tea Time 🍵", "Beach Clubs Life 🏖️🥥" rather than "Best Cafes in the CBD."
+- Short, punchy captions: what the place/dish is, what makes it worth it, the price if relevant, and a quick honest verdict — no flowery food-writing, no over-the-top adjectives.
+- Transparent and trust-building — subtly signals honesty (e.g. paid for own meals, genuine opinions) rather than sounding like a sponsored ad.
+- Emoji-forward but purposeful — one or two food/place emoji bookending a caption or list title (🥢🍜🍵🏖️), not a string of random emoji.
+- Light Singlish inflection is welcome where natural (e.g. "shiok", "must-try", "confirm plus chop") but never forced.
+- Ends with a light rhetorical question or invite to engage ("what's your favourite?", "who's coming with me?") rather than a hard sales CTA.
+- Keep it scrappy and real — a good find matters more than a polished shoot.`
+  };
+
+  function getNicheStyleGuide(niche) {
+    return NICHE_STYLE_GUIDES[niche] || '';
+  }
 
   // ── Helpers ──────────────────────────────────────────────
 
@@ -536,8 +567,11 @@
       ? `\nReference content links — analyse the hook/angle/format and adapt for this creator's voice:\n${links.map((l,i)=>`${i+1}. ${l}`).join('\n')}`
       : '';
 
-    const prompt = `You are a social media content strategist helping a creator brainstorm highly specific, authentic content ideas.
+    const styleGuide = getNicheStyleGuide(selectedNiche);
+    const styleSection = styleGuide ? `\n${styleGuide}\n` : '';
 
+    const prompt = `You are a social media content strategist helping a creator brainstorm highly specific, authentic content ideas.
+${styleSection}
 Creator context:
 - Platforms: ${selectedPlatforms.join(', ')}
 - Content niche/theme: ${selectedNiche}
@@ -550,7 +584,7 @@ Generate exactly ${ideaCount} content ideas. Each must:
 2. Reference the products/ideas or script pointers if provided
 3. Specify which platform(s) it's best for
 4. Include a content format (Reel, Carousel, TikTok, YouTube Short, etc.)
-5. Have a punchy hook-style title and a 1-2 sentence brief${links.length > 0 ? '\n6. At least 2 ideas should adapt the angle from reference links and include an "inspired_by" note' : ''}
+5. Have a punchy hook-style title and a 1-2 sentence brief${styleGuide ? ', written strictly in the brand voice / style guide above — not generic marketing copy' : ''}${links.length > 0 ? '\n6. At least 2 ideas should adapt the angle from reference links and include an "inspired_by" note' : ''}
 
 Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
 [{"id":1,"title":"...","brief":"...","platforms":["Instagram"],"format":"Reel","inspired_by":"optional"}]`;
@@ -649,7 +683,8 @@ Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
     const card = document.getElementById(`idea-${id}`);
     card.style.opacity = '0.5';
     try {
-      const tweakPrompt = `Rewrite this content idea based on feedback. Keep it specific and personal.
+      const tweakStyle = getNicheStyleGuide(selectedNiche);
+      const tweakPrompt = `Rewrite this content idea based on feedback. Keep it specific and personal.${tweakStyle ? `\n${tweakStyle}\n` : ''}
 Original title: ${idea.title}
 Brief: ${idea.brief}
 Feedback: "${note}"
@@ -683,9 +718,10 @@ Respond ONLY with JSON (no markdown): {"title":"...","brief":"...","platforms":[
     const platforms = Array.isArray(idea.platforms) ? idea.platforms : [idea.platforms];
     const platform  = platforms[0] || 'social media';
 
+    const scriptStyle = getNicheStyleGuide(selectedNiche);
     const scriptPrompt = `You are a social media content scriptwriter.
 Write a complete, ready-to-film script for this content idea:
-
+${scriptStyle ? `\n${scriptStyle}\n` : ''}
 Title: ${idea.title}
 Brief: ${idea.brief}
 Platform: ${platform}
