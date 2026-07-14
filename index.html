@@ -362,6 +362,34 @@
   .lib-checkbox-label { display:flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--muted); font-weight:700; flex:1; }
   .lib-delete-btn { background:transparent; border:2px solid var(--border); color:#ef4444; font-size:0.72rem; font-weight:700; cursor:pointer; padding:6px 10px; border-radius:10px; transition:all 0.2s; }
   .lib-delete-btn:hover { border-color:#fca5a5; background:#fff5f5; }
+
+  /* ── Notes tab (production planning) ── */
+  .note-card {
+    background:var(--surface); border:2px solid var(--border);
+    border-radius:18px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow);
+    animation:slideUp 0.3s ease forwards;
+  }
+  .note-card-title { font-family:'Nunito',sans-serif; font-weight:800; font-size:0.95rem; color:var(--text); margin-bottom:4px; line-height:1.35; }
+  .note-card-brief { font-size:0.78rem; color:var(--muted); font-weight:500; margin-bottom:12px; line-height:1.5; }
+  .note-block { border-radius:14px; padding:12px; margin-bottom:10px; }
+  .note-block.voiceover { background:var(--mint-soft); border:1.5px solid #a7f3d0; }
+  .note-block.aroll { background:var(--lavender-soft); border:1.5px solid #ddd6fe; }
+  .note-block.broll { background:#fff7ed; border:1.5px solid #fed7aa; }
+  .note-block-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; }
+  .note-block-head label { font-family:'Nunito',sans-serif; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text); }
+  .note-time-wrap { display:flex; align-items:center; gap:5px; font-size:0.7rem; color:var(--muted); font-weight:700; flex-shrink:0; }
+  .note-time-input {
+    width:54px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px;
+    padding:5px 4px; font-family:'Nunito',sans-serif; font-weight:700;
+    font-size:0.78rem; text-align:center; background:white; color:var(--text);
+  }
+  .note-block textarea {
+    width:100%; border:1.5px solid rgba(0,0,0,0.08); border-radius:10px;
+    padding:9px; font-family:'Quicksand',sans-serif; font-size:0.8rem;
+    background:white; resize:vertical; min-height:46px; line-height:1.5; color:var(--text);
+  }
+  .note-total { text-align:right; font-size:0.78rem; font-weight:800; color:var(--pink-deep); margin-top:2px; margin-bottom:10px; }
+  .notes-empty { font-size:0.78rem; color:var(--muted); font-weight:500; text-align:center; padding:26px 14px; background:var(--surface); border:2px dashed var(--border); border-radius:16px; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -390,6 +418,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" id="tabBtnBrainstorm" onclick="switchTab('brainstorm')">💡 Brainstorm</button>
   <button class="tab-btn" id="tabBtnViral" onclick="switchTab('viral')">🔍 Why It Went Viral</button>
+  <button class="tab-btn" id="tabBtnNotes" onclick="switchTab('notes')">🎬 Notes</button>
 </div>
 
 <div class="tab-content active" id="tab-brainstorm">
@@ -533,6 +562,19 @@
 
 </div><!-- /tab-viral -->
 
+<div class="tab-content" id="tab-notes">
+
+  <div class="viral-intro">
+    <p>Approve an idea on the Brainstorm tab and it lands here automatically, split into Voiceover, A-Roll and B-Roll so you can plan the shoot and log how long each part takes to film ⏱️</p>
+  </div>
+
+  <div class="section" style="margin-top:16px">
+    <div id="notesList"></div>
+    <button class="add-link-btn" onclick="addManualNote()">➕ Add a note manually</button>
+  </div>
+
+</div><!-- /tab-notes -->
+
 <script>
   let selectedPlatforms = ['Instagram','TikTok','YouTube'];
   let selectedNiche = '';
@@ -545,8 +587,12 @@
   let library = [];         // saved, persisted breakdowns
   let pendingAnalysis = null; // most recent unsaved analysis
 
+  // ── Production notes (Voiceover / A-Roll / B-Roll) ─────────
+  let notes = [];
+
   window.addEventListener('DOMContentLoaded', () => {
     loadLibrary();
+    loadNotes();
     const ctx = document.getElementById('viralContext');
     if (ctx) ctx.addEventListener('input', () => { lastAutoFetchWasReal = false; });
   });
@@ -660,8 +706,10 @@ Voice rules:
   function switchTab(name) {
     document.getElementById('tab-brainstorm').classList.toggle('active', name === 'brainstorm');
     document.getElementById('tab-viral').classList.toggle('active', name === 'viral');
+    document.getElementById('tab-notes').classList.toggle('active', name === 'notes');
     document.getElementById('tabBtnBrainstorm').classList.toggle('active', name === 'brainstorm');
     document.getElementById('tabBtnViral').classList.toggle('active', name === 'viral');
+    document.getElementById('tabBtnNotes').classList.toggle('active', name === 'notes');
   }
 
   // ── Steal-like-an-artist library (persisted via Puter KV) ───
@@ -719,6 +767,122 @@ Voice rules:
     library = library.filter(i => i.id !== id);
     renderLibrary();
     persistLibrary();
+  }
+
+  // ── Production notes (persisted via Puter KV) ───────────────
+
+  async function loadNotes() {
+    try {
+      const stored = await puter.kv.get('lazetiff_production_notes');
+      if (stored) notes = JSON.parse(stored);
+    } catch (e) {
+      console.warn('Could not load notes (probably empty or not signed in yet):', e);
+    }
+    renderNotes();
+  }
+
+  async function persistNotes() {
+    try {
+      await puter.kv.set('lazetiff_production_notes', JSON.stringify(notes));
+    } catch (e) {
+      console.warn('Could not persist notes:', e);
+    }
+  }
+
+  function blankSegment() { return { text: '', minutes: 0 }; }
+
+  function addToNotes(idea) {
+    if (notes.some(n => n.sourceIdeaId === idea.id)) return; // already added
+    notes.unshift({
+      id: 'note_' + Date.now() + '_' + idea.id,
+      sourceIdeaId: idea.id,
+      title: idea.title,
+      brief: idea.brief || '',
+      voiceover: blankSegment(),
+      aroll: blankSegment(),
+      broll: blankSegment()
+    });
+    persistNotes();
+    renderNotes();
+  }
+
+  function addManualNote() {
+    const title = prompt('Note title? (e.g. the video you\'re about to film)');
+    if (!title) return;
+    notes.unshift({
+      id: 'note_' + Date.now(),
+      sourceIdeaId: null,
+      title,
+      brief: '',
+      voiceover: blankSegment(),
+      aroll: blankSegment(),
+      broll: blankSegment()
+    });
+    persistNotes();
+    renderNotes();
+  }
+
+  function updateNoteText(id, section, value) {
+    const n = notes.find(x => x.id === id);
+    if (!n) return;
+    n[section].text = value;
+    persistNotes();
+  }
+
+  function updateNoteTime(id, section, value) {
+    const n = notes.find(x => x.id === id);
+    if (!n) return;
+    const num = parseFloat(value);
+    n[section].minutes = isNaN(num) ? 0 : num;
+    persistNotes();
+    renderNotes();
+  }
+
+  function deleteNote(id) {
+    notes = notes.filter(n => n.id !== id);
+    persistNotes();
+    renderNotes();
+  }
+
+  function noteBlockHtml(noteId, section, label) {
+    return `
+    <div class="note-block ${section}">
+      <div class="note-block-head">
+        <label>${label}</label>
+        <div class="note-time-wrap">
+          <input type="number" min="0" class="note-time-input" value="__MIN__" onchange="updateNoteTime('${noteId}','${section}',this.value)"/> min
+        </div>
+      </div>
+      <textarea rows="2" placeholder="Notes for ${label}…" onblur="updateNoteText('${noteId}','${section}',this.value)">__TEXT__</textarea>
+    </div>`;
+  }
+
+  function renderNotes() {
+    const wrap = document.getElementById('notesList');
+    if (!wrap) return;
+    if (notes.length === 0) {
+      wrap.innerHTML = `<div class="notes-empty">Nothing here yet 🌸<br>Approve an idea on the Brainstorm tab, or add a note manually, to start planning your shoot.</div>`;
+      return;
+    }
+    wrap.innerHTML = '';
+    notes.forEach((n, i) => {
+      const total = (n.voiceover.minutes || 0) + (n.aroll.minutes || 0) + (n.broll.minutes || 0);
+      const div = document.createElement('div');
+      div.className = 'note-card';
+      div.style.animationDelay = `${i * 0.05}s`;
+      div.innerHTML = `
+        <div class="note-card-title">${n.title}</div>
+        ${n.brief ? `<div class="note-card-brief">${n.brief}</div>` : ''}
+        ${noteBlockHtml(n.id, 'voiceover', '🎙️ Voiceover')
+          .replace('__MIN__', n.voiceover.minutes || 0).replace('__TEXT__', n.voiceover.text || '')}
+        ${noteBlockHtml(n.id, 'aroll', '🎥 A-Roll')
+          .replace('__MIN__', n.aroll.minutes || 0).replace('__TEXT__', n.aroll.text || '')}
+        ${noteBlockHtml(n.id, 'broll', '🎞️ B-Roll')
+          .replace('__MIN__', n.broll.minutes || 0).replace('__TEXT__', n.broll.text || '')}
+        <div class="note-total">⏱️ Total filming time: ${total} min</div>
+        <button class="lib-delete-btn" onclick="deleteNote('${n.id}')">🗑 Remove</button>`;
+      wrap.appendChild(div);
+    });
   }
 
   // ── Auto-fetch caption (TikTok / YouTube oEmbed — public, no key needed) ──
@@ -963,6 +1127,9 @@ Respond ONLY with a valid JSON array — no preamble, no markdown backticks:
     if (scriptBox && !scriptBox.classList.contains('visible')) {
       generateScript(id);
     }
+    // Send to Notes tab for filming breakdown
+    const idea = ideas.find(i => i.id === id);
+    if (idea) addToNotes(idea);
   }
 
   function skip(id) {
